@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Aj7Ay/microheart/main/microheart.png" alt="microheart: run Firecracker microVMs with one command" width="100%">
+</p>
+
 # microheart
 
 **Boot a [Firecracker](https://firecracker-microvm.github.io/) microVM with one command or three lines of Python.**
