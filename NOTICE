@@ -1,0 +1,15 @@
+microheart
+Copyright (c) 2026 Ajay Kumar. Licensed under the MIT License (see LICENSE).
+
+This project downloads (or, in platform wheels, bundles) unmodified third-party software:
+
+  Firecracker  - Apache License 2.0
+                 Copyright Amazon.com, Inc. or its affiliates.
+                 https://github.com/firecracker-microvm/firecracker
+
+  Linux guest kernel images from the Firecracker CI artifacts - GPL-2.0
+                 Source: https://github.com/firecracker-microvm/firecracker
+                 and https://www.kernel.org/
+
+"Firecracker" is a name of Amazon Web Services. microheart is an independent project.
+It is not affiliated with, endorsed by, or sponsored by AWS.

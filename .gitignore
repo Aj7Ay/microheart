@@ -1,0 +1,7 @@
+dist/
+build/
+*.egg-info/
+__pycache__/
+src/microheart/bin/
+.venv/
+.DS_Store

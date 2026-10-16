@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs at boot (OpenRC "local" service).
+# Docker does not keep /etc/resolv.conf in an image, so we write it at boot.
+printf 'nameserver 8.8.8.8\noptions single-request-reopen\n' > /etc/resolv.conf

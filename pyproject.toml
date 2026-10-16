@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "microheart"
+version = "0.1.0"
+description = "Boot Firecracker microVMs from Python or the command line. Zero dependencies, Linux/KVM, Docker only to build the disk."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Ajay Kumar"}]
+keywords = ["firecracker", "microvm", "kvm", "virtualization", "sandbox", "vm", "isolation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Emulators",
+    "Topic :: System :: Virtualization",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Aj7Ay/microheart"
+Source = "https://github.com/Aj7Ay/microheart"
+Issues = "https://github.com/Aj7Ay/microheart/issues"
+Changelog = "https://github.com/Aj7Ay/microheart/blob/main/CHANGELOG.md"
+
+[project.scripts]
+microheart = "microheart.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+microheart = ["data/*", "data/files/**/*", "bin/*"]

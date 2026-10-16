@@ -1,0 +1,4 @@
+# Serial console login. TEST ONLY: root logs in with no password.
+# Anyone who reaches the console becomes root. Remove this for real use.
+# If login does not work, run "passwd -d root" in the build script instead.
+agetty_options="--autologin root --noclear"
