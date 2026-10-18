@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - `microheart --version`, and `python -m microheart`.
 - README: install with pipx so the `microheart` command is on the PATH.
