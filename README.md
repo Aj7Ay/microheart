@@ -117,8 +117,8 @@ Edit the recipe to add your own packages, then run `build-rootfs` again.
 
 ## Security notes
 
-- The serial console logs in as **root with no password** (test setting).
-  Edit `data/files/etc/conf.d/agetty.ttyS0` before real use.
+- The serial console asks for a login, and root has no password, so you cannot log in on the console.
+  Use SSH (`microheart ssh`). Use `microheart console` to read boot messages.
 - SSH accepts keys only. The key is made on your machine and is never part of the package.
 - The guest can reach the internet through host NAT. The guest and host `FORWARD` policy is set to `ACCEPT`.
 - Firecracker's `jailer` (extra isolation) is not used yet.

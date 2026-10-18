@@ -2,4 +2,4 @@
 from .vm import MicroVM
 
 __all__ = ["MicroVM"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"

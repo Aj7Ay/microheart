@@ -12,6 +12,6 @@ Give the version, your steps, and what you expected. Expect a first reply within
 
 ## Known limits (not bugs)
 
-- The guest serial console logs in as root with no password. This is a test setting.
+- The guest accepts SSH with one key only. The console has no working login (root has no password).
 - The guest has NAT access to the host network and the internet.
 - Firecracker's `jailer` is not used yet. Do not run untrusted code with this tool alone.

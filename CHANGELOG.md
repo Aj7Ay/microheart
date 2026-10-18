@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1
+
+First version tested on a real host (Ubuntu 24.04, AWS c8i.large with nested virtualization).
+Tested: install, fetch, build-rootfs, up (SSH ready in about 3 s), ssh, internet from the guest, down.
+
+- Fix: `build-rootfs` works without buildx (Ubuntu's `docker.io` has none). It uses `docker create` + `docker export`.
+- Fix: remove `/.dockerenv` from the disk. OpenRC thought it ran in Docker and skipped the hostname and
+  networking services, so SSH never started.
+- Security: remove the passwordless root console login.
+- `status` and `console` now show in `--help`.
+
 ## 0.1.0 (unreleased)
 
 - First version. Alpha: not yet tested on a real host.

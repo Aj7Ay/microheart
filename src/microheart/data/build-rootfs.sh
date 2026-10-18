@@ -22,10 +22,19 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 echo "Step 1: build the image and write its files to a folder"
-# --output type=local writes the image files straight to a folder.
-# It avoids the empty /etc/hostname, /etc/hosts and /etc/resolv.conf
-# that "docker export" can leave behind. Verify this on your Docker version.
-docker build --output "type=local,dest=$WORK/root" "$(dirname "$0")"
+# "docker create" + "docker export" works with the old builder and with BuildKit.
+# (Ubuntu's docker.io package has no buildx, so "docker build --output" fails there.)
+# The export leaves empty /etc/hostname, /etc/hosts and /etc/resolv.conf.
+# Step 2 writes the first two. The guest writes resolv.conf at boot (10-dns.start).
+IMAGE="microheart-rootfs:build"
+docker build -t "$IMAGE" "$(dirname "$0")"
+CID="$(docker create "$IMAGE")"
+trap 'docker rm -f "$CID" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+mkdir -p "$WORK/root"
+docker export "$CID" | tar -x -C "$WORK/root"
+# Docker adds /.dockerenv to every container. OpenRC reads it and thinks it runs in Docker,
+# so it skips the hostname and networking services. Remove it. The guest is a real VM.
+rm -f "$WORK/root/.dockerenv"
 
 echo "Step 2: add the SSH public key and the host name"
 install -d -m 700 "$WORK/root/root/.ssh"
