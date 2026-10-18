@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `microheart --version`, and `python -m microheart`.
+- README: install with pipx so the `microheart` command is on the PATH.
+
 ## 0.1.1
 
 First version tested on a real host (Ubuntu 24.04, AWS c8i.large with nested virtualization).

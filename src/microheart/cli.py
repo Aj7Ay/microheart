@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import assets
+from . import __version__, assets
 from .vm import MicroVM
 
 
@@ -60,6 +60,7 @@ def cmd_down(a):
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="microheart")
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--rootfs"); p.add_argument("--key")
     p.add_argument("--vcpu", type=int, default=1); p.add_argument("--mem", type=int, default=256)
     sub = p.add_subparsers(dest="cmd", required=True)

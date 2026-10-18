@@ -46,17 +46,27 @@ Docker is **not** needed to run the VM. Build the disk once and copy the `.ext4`
 
 ## Install
 
-    pip install microheart
+The tool needs root (TAP devices, `iptables`). Install it system-wide with
+[pipx](https://pipx.pypa.io/), so that `microheart` works from any folder, also with `sudo`:
+
+    sudo apt-get install -y pipx
+    sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install microheart
+    microheart --version
+
+Update later with `sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade microheart`.
+
+You can also use `pip install microheart`, but inside a virtual environment the command is only at
+`<venv>/bin/microheart` and is not on your `PATH`. Use pipx to avoid that.
 
 ## Quick start
 
-    sudo microheart fetch            # Firecracker + kernel (skipped when bundled in the wheel)
-    sudo microheart build-rootfs     # build alpine.ext4 + an SSH key (needs Docker)
-    sudo microheart up               # boot the VM and wait for SSH
-    sudo microheart ssh uname -a     # run one command, or open a shell without arguments
-    sudo microheart down             # stop the VM, remove tap0 and the NAT rule
+    microheart fetch                 # Firecracker + kernel (skipped when bundled in the wheel)
+    microheart build-rootfs          # build alpine.ext4 + an SSH key (needs Docker)
+    microheart up                    # boot the VM and wait for SSH
+    microheart ssh uname -a          # run one command, or open a shell without arguments
+    microheart down                  # stop the VM, remove tap0 and the NAT rule
 
-Files go to `~/.cache/microheart/` (change with `MICROHEART_HOME`). With `sudo`, `~` is root's home.
+Run these as root (`sudo -i` first, or put `sudo` in front). Files go to `~/.cache/microheart/` (change with `MICROHEART_HOME`). With `sudo`, `~` is root's home.
 
 ## Command reference
 
