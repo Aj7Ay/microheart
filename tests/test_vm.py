@@ -61,6 +61,40 @@ class VMTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertIn("-D", calls[0])
 
+    def stop_without_key(self, name="a", survives_sigterm=False):
+        """Run the real stop() on a VM object that has no SSH key. Return (ssh mock, kill mock)."""
+        self.reg.create(name)
+        vm = vmmod.MicroVM(name, registry=self.reg, run_dir=self.tmp.name)       # no key, like pool delete
+        alive = {"v": True}
+        kills = []
+
+        def fake_kill(pid, sig):
+            kills.append(sig)
+            if sig == vmmod.signal.SIGKILL or (sig == vmmod.signal.SIGTERM and not survives_sigterm):
+                alive["v"] = False
+
+        with mock.patch.object(vmmod.MicroVM, "pid", lambda s: 4242 if alive["v"] else None), \
+                mock.patch.object(vmmod.MicroVM, "ssh") as ssh, \
+                mock.patch.object(vmmod.os, "kill", fake_kill), \
+                mock.patch.object(vmmod.time, "sleep"):
+            vm.stop()
+        return ssh, kills
+
+    def test_stop_without_key_does_not_use_ssh_and_stops_the_process(self):
+        ssh, kills = self.stop_without_key()
+        ssh.assert_not_called()
+        self.assertEqual(kills, [vmmod.signal.SIGTERM])
+
+    def test_stop_uses_sigkill_when_sigterm_is_ignored(self):
+        _, kills = self.stop_without_key(survives_sigterm=True)
+        self.assertEqual(kills, [vmmod.signal.SIGTERM, vmmod.signal.SIGKILL])
+
+    def test_ssh_argv_without_key_is_a_clear_error(self):
+        self.reg.create("a")
+        vm = vmmod.MicroVM("a", registry=self.reg, run_dir=self.tmp.name)
+        with self.assertRaises(RuntimeError):
+            vm.ssh_argv("true")
+
     def test_two_vms_get_different_addresses(self):
         self.reg.create("a")
         self.reg.create("b")

@@ -133,22 +133,35 @@ class MicroVM:
                 print(tail)
             raise
 
+    def _wait_exit(self, seconds):
+        for _ in range(int(seconds * 2)):
+            if not self.running():
+                return True
+            time.sleep(0.5)
+        return not self.running()
+
+    def _signal(self, pid, sig):
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            pass
+
     def stop(self):
+        """Stop the VM. With an SSH key, ask the guest to reboot first (Firecracker then exits).
+        Without a key (for example `pool delete`), stop the process directly: SSH is not needed to stop a VM."""
         pid = self.pid()
         if pid:
-            try:
-                self.ssh("reboot", check=False, timeout=10)    # a guest reboot makes Firecracker exit
-            except subprocess.TimeoutExpired:
-                pass
-            for _ in range(10):
-                if not self.running():
-                    break
-                time.sleep(1)
+            if self.key:
+                try:
+                    self.ssh("reboot", check=False, timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
+                self._wait_exit(5)
             if self.running():
-                os.kill(pid, signal.SIGTERM)
-                time.sleep(1)
+                self._signal(pid, signal.SIGTERM)
+                self._wait_exit(3)
             if self.running():
-                os.kill(pid, signal.SIGKILL)
+                self._signal(pid, signal.SIGKILL)
         if self.rec:
             self.registry.set_pid(self.name, None)
 
@@ -165,6 +178,8 @@ class MicroVM:
 
     # -- guest access --------------------------------------------------
     def ssh_argv(self, command=None):
+        if not self.key:
+            raise RuntimeError("no SSH key was given for this VM object")
         argv = ["ssh", "-i", self.key, "-o", "StrictHostKeyChecking=no",
                 "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR",
                 "-o", "ConnectTimeout=3", f"root@{self.guest_ip}"]

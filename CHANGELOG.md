@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+First release tested on a real host with the multi-VM, `run` and pool features (DigitalOcean droplet, Ubuntu 24.04).
+
+- Fix: `pool delete` (and `pool scale` to a smaller size) crashed with `TypeError` when it stopped a running VM, because
+  stopping tried to use SSH without a key. Stopping a VM no longer needs SSH: with a key the guest is asked to reboot,
+  without a key the process is stopped directly (SIGTERM, then SIGKILL). A regression test covers it.
+- `ssh_argv` gives a clear error when no key was given.
+
 ## 0.3.0 (alpha: multi-VM, run and the pool are not tested on a real host yet)
 
 - **Warm pool.** `microheart pool create NAME --size N` boots N ready VMs. `microheart run --pool NAME -- cmd`

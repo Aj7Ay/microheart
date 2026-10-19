@@ -157,6 +157,31 @@ class PoolLogicTests(unittest.TestCase):
         self.assertIsNone(self.reg.pool_get("p"))
         self.assertEqual(self.reg.list(), [])
 
+    def test_delete_really_stops_live_vms_that_have_no_ssh_key(self):
+        """Regression: 0.3.0 crashed here, because pool.delete builds MicroVM objects without a key."""
+        names = self.reg.reserve("p")
+        for n in names:
+            self.reg.set_pid(n, 4242)
+            self.reg.set_state(n, "ready")
+        alive = {n: True for n in names}
+        killed = []
+
+        def fake_kill(pid, sig):
+            killed.append(sig)
+            for n in names:
+                alive[n] = False
+
+        vmmod = poolmod.MicroVM.__module__
+        import importlib
+        vmmod = importlib.import_module(vmmod)
+        with mock.patch.object(poolmod.MicroVM, "pid", lambda s: 4242 if alive.get(s.name) else None), \
+                mock.patch.object(vmmod.os, "kill", fake_kill), \
+                mock.patch.object(vmmod.time, "sleep"), \
+                mock.patch.object(vmmod.net, "down"):
+            self.assertEqual(poolmod.delete(self.reg, "p"), 2)
+        self.assertEqual(self.reg.list(), [])
+        self.assertTrue(killed)
+
     def test_scale_down_destroys_only_surplus_ready_vms(self):
         for n in self.reg.reserve("p"):
             self.reg.set_state(n, "ready")

@@ -7,8 +7,8 @@
 **Boot a [Firecracker](https://firecracker-microvm.github.io/) microVM with one command or three lines of Python.**
 No Python dependencies. Linux with KVM only.
 
-> **Status: alpha.** Version 0.1.2 was tested end to end with one VM on a real host (see [Tested on](#tested-on)).
-> The multi-VM commands, `run` (new in 0.2.0) and the warm pool (new in 0.3.0) are **not tested on a real host yet** (see [CHANGELOG.md](CHANGELOG.md)).
+> **Status: alpha.** Single VM, several VMs, `run` and the warm pool passed a test on a real host (see [Tested on](#tested-on)).
+> The `pool delete` fix in 0.3.1 is covered by a unit test but has not been re-run on a host yet.
 > See [SECURITY.md](SECURITY.md) for the known limits.
 
 ## What it does
@@ -90,7 +90,7 @@ Run these as root (`sudo -i` first, or put `sudo` in front). Files go to `~/.cac
 | `microheart pool delete NAME` | Remove the pool and all its VMs. |
 | `microheart benchmark [--count 5] [--pool NAME]` | Time cold starts, and warm dispatch with `--pool`. |
 
-`--name`, `list`, `run` and `down --all` are new in 0.2.0 and are not tested on a real host yet.
+`--name`, `list`, `run` and `down --all` are new in 0.2.0.
 Without `--name` the VM is called `default`. Global options (before the command): `--rootfs FILE`, `--key FILE`,
 `--vcpu N` (default 1), `--mem MIB` (default 256).
 
@@ -110,7 +110,7 @@ The arguments go to the guest as separate words, quoted. The host shell does not
 success, failure, timeout, Ctrl+C and `kill`. The exit code is the command's exit code (`124` for a timeout).
 The base disk has no Python. Build your own disk (edit the `Dockerfile`) for other tools.
 
-### Warm pool (new in 0.3.0, not tested on a real host yet)
+### Warm pool (new in 0.3.0)
 
 A cold `run` boots a VM for every command (3 to 4 s until SSH worked in our test). A pool boots VMs **before**
 they are needed:
@@ -129,7 +129,8 @@ Rules:
 - **Bounded waiting.** If no VM is ready, the job waits up to `--queue-timeout` seconds, then fails with a clear error.
 - **No daemon.** `run --pool` starts a detached `microheart pool refill`. Its log is `~/.cache/microheart/pool-refill.log`.
 - A pool VM whose process died is removed and replaced on the next refill.
-- The pool uses SSH to run commands. We have **no measured numbers** for warm dispatch yet. Run `benchmark` on your host.
+- The pool uses SSH to run commands. On a 2 vCPU droplet we measured a warm p50 of 281 ms against a cold p50 of 4590 ms
+  (5 runs each, see [Tested on](#tested-on)). Most of the warm time is the SSH connection. Run `benchmark` on your host.
 - Idle pool VMs have the same network access as any VM (NAT to the internet). A per-VM firewall is not built yet.
 
 ## Python API
@@ -194,7 +195,7 @@ Edit the recipe to add your own packages, then run `build-rootfs` again.
 
 ## Limits and roadmap
 
-- Alpha. Single VM tested on a real host (0.1.2). Multi-VM, `run` (0.2.0) and the warm pool (0.3.0) are not.
+- Alpha. Tested on two hosts only (see [Tested on](#tested-on)). Small sample sizes. No load or crash tests on a real host.
 - The pool has no background service: replacements start when a job finishes. If nobody runs jobs, a crashed pool VM stays
   until the next `run --pool` or `pool refill`.
 - VMs reach each other and the host through the TAP network (no per-VM firewall yet).
@@ -205,11 +206,14 @@ Edit the recipe to add your own packages, then run `build-rootfs` again.
 
 | Item | Value |
 |---|---|
-| Version | 0.1.2, one VM: install, `fetch`, `build-rootfs`, `up`, `ssh`, internet from the guest, `down` |
-| Host | AWS `c8i.large`, nested virtualization on, Ubuntu 24.04, Docker CE |
+| Version 0.1.2, one VM | install, `fetch`, `build-rootfs`, `up`, `ssh`, internet from the guest, `down`. Host: AWS `c8i.large`, nested virtualization on, Ubuntu 24.04, Docker CE. Time to SSH 3.2 to 4.2 s. |
+| Version 0.3.0, everything | pipx install, `build-rootfs`, `up`/`ssh`/`down`, two VMs at once (`172.16.0.2`, `172.16.0.6`), `down --all` (no `mh*` device and no NAT rule left), `run` (output, exit code 3, timeout 124, no VM left), `pool create`/`status`/`run --pool`, `benchmark`. Host: DigitalOcean droplet, 2 vCPU, 4 GB, Ubuntu 24.04, Docker CE. |
+| Version 0.3.0 result | All passed except `pool delete` (crash, fixed in 0.3.1). |
+| Time to SSH (0.3.0) | 2.3 s (first VM), 4.3 s (two VMs one after the other) |
+| Pool of 3 | 3 ready VMs in 4.5 s |
+| Benchmark (5 runs each) | cold: min 4569, p50 4590, p95 4674 ms. warm: min 265, p50 281, p95 326 ms. Warm p50 is 16.3x faster. |
 | Firecracker | v1.17.0 |
 | Guest kernel | 6.18.54 (Firecracker CI build) |
-| Time to SSH | 3.2 to 4.2 s |
 
 ## Troubleshooting
 
