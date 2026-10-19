@@ -19,7 +19,7 @@ RUN ln -s agetty /etc/init.d/agetty.ttyS0 \
 
 # Config files: network, DNS at boot, console options.
 COPY files/ /
-RUN chmod 755 /etc/local.d/10-dns.start
+RUN chmod 755 /etc/local.d/*.start
 
 # SSH: allow root login with a key only. No passwords.
 RUN echo "PermitRootLogin prohibit-password" >> /etc/ssh/sshd_config \

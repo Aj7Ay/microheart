@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0a1 (pre-release: not tested on a real host yet)
+
+Install with `pip install --pre microheart`. Plain `pip install microheart` still gives 0.1.2.
+
+- Several VMs at once: `--name`, `list`, `down --all`. Each VM gets its own disk copy, `/30` network, TAP device and MAC.
+- State in a small SQLite registry (standard library). Stale records from a crash are cleaned on the next `up`.
+- `microheart run -- command`: boot a temporary VM, run the command, return its output and exit code, remove the VM.
+- The address goes to the guest on the kernel command line. One disk image works for every VM.
+  **Rebuild the disk** (`microheart build-rootfs`) to use more than one VM. An old 0.1.x disk still works for the first VM.
+- The shared NAT rule is removed only when the last VM goes down.
+- Unit tests (`python -m unittest discover -s tests`), run in CI.
+
 ## 0.1.2
 
 - `microheart --version`, and `python -m microheart`.

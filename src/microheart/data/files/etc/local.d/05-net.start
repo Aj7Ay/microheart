@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs at boot (OpenRC "local" service). microheart passes the address on the kernel command line:
+#   microheart.ip=172.16.0.2/30 microheart.gw=172.16.0.1 microheart.name=NAME
+# One disk image then works for every VM, because each VM gets its own address.
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    microheart.ip=*)   IP="${arg#microheart.ip=}" ;;
+    microheart.gw=*)   GW="${arg#microheart.gw=}" ;;
+    microheart.name=*) NAME="${arg#microheart.name=}" ;;
+  esac
+done
+[ -n "${NAME:-}" ] && hostname "$NAME"
+[ -n "${IP:-}" ] || exit 0
+ip link set eth0 up
+ip addr add "$IP" dev eth0
+ip route add default via "$GW" dev eth0 onlink

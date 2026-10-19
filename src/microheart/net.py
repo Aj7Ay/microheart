@@ -29,8 +29,11 @@ def up(tap: str, host_ip: str) -> str:
     return iface
 
 
-def down(tap: str) -> None:
+def down(tap: str, remove_nat: bool = True) -> None:
+    """Remove the TAP device. Remove the shared NAT rule only when no other VM needs it."""
     _run("ip", "link", "del", tap, check=False)
+    if not remove_nat:
+        return
     try:
         iface = host_iface()
     except (IndexError, subprocess.CalledProcessError):

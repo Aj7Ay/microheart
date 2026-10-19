@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "microheart"
-version = "0.1.2"
+version = "0.2.0a1"
 description = "Boot Firecracker microVMs from Python or the command line. Zero dependencies, Linux/KVM, Docker only to build the disk."
 readme = "README.md"
 requires-python = ">=3.9"
