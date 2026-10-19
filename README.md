@@ -7,10 +7,8 @@
 **Boot a [Firecracker](https://firecracker-microvm.github.io/) microVM with one command or three lines of Python.**
 No Python dependencies. Linux with KVM only.
 
-> **Unofficial. Not affiliated with or endorsed by Amazon Web Services.** "Firecracker" is an AWS project and name.
->
 > **Status: alpha.** Version 0.1.2 was tested end to end with one VM on a real host (see [Tested on](#tested-on)).
-> The multi-VM commands and `run` are new in 0.2.0a1 (a pre-release, see [CHANGELOG.md](CHANGELOG.md)) and are **not tested on a real host yet**.
+> The multi-VM commands, `run` (new in 0.2.0) and the warm pool (new in 0.3.0) are **not tested on a real host yet** (see [CHANGELOG.md](CHANGELOG.md)).
 > See [SECURITY.md](SECURITY.md) for the known limits.
 
 ## What it does
@@ -68,7 +66,7 @@ You can also use `pip install microheart`, but inside a virtual environment the 
     microheart up                    # boot the VM and wait for SSH
     microheart ssh uname -a          # run one command, or open a shell without arguments
     microheart down                  # stop the VM, remove its TAP device and disk copy
-    microheart run -- uname -a       # new in 0.2.0a1: boot a temporary VM, run, remove the VM
+    microheart run -- uname -a       # new in 0.2.0: boot a temporary VM, run, remove the VM
 
 Run these as root (`sudo -i` first, or put `sudo` in front). Files go to `~/.cache/microheart/` (change with `MICROHEART_HOME`). With `sudo`, `~` is root's home.
 
@@ -85,9 +83,14 @@ Run these as root (`sudo -i` first, or put `sudo` in front). Files go to `~/.cac
 | `microheart status [--name NAME]` | Show if a VM runs. |
 | `microheart console [--name NAME] [-n 40]` | Show the last lines of the guest console. |
 | `microheart down [--name NAME \| --all]` | Stop VMs. Remove their disk copy and TAP device. |
+| `microheart run --pool POOL [--queue-timeout 30] -- command...` | Run the command in a ready VM of a warm pool, then destroy that VM. New in 0.3.0. |
+| `microheart pool create NAME [--size 3] [--vcpu 1] [--mem 256]` | Create a pool and boot its VMs. |
+| `microheart pool status [NAME]` | Show size, ready, booting and leased VMs. |
+| `microheart pool scale NAME --size N` | Change the size. |
+| `microheart pool delete NAME` | Remove the pool and all its VMs. |
+| `microheart benchmark [--count 5] [--pool NAME]` | Time cold starts, and warm dispatch with `--pool`. |
 
-`--name`, `list`, `run` and `down --all` are new in the pre-release 0.2.0a1 and are not tested on a real host yet.
-Install them with `pip install --pre microheart`. Plain `pip install microheart` gives 0.1.2 without them.
+`--name`, `list`, `run` and `down --all` are new in 0.2.0 and are not tested on a real host yet.
 Without `--name` the VM is called `default`. Global options (before the command): `--rootfs FILE`, `--key FILE`,
 `--vcpu N` (default 1), `--mem MIB` (default 256).
 
@@ -106,6 +109,28 @@ Without `--name` the VM is called `default`. Global options (before the command)
 The arguments go to the guest as separate words, quoted. The host shell does not interpret them. The VM is removed after
 success, failure, timeout, Ctrl+C and `kill`. The exit code is the command's exit code (`124` for a timeout).
 The base disk has no Python. Build your own disk (edit the `Dockerfile`) for other tools.
+
+### Warm pool (new in 0.3.0, not tested on a real host yet)
+
+A cold `run` boots a VM for every command (3 to 4 s until SSH worked in our test). A pool boots VMs **before**
+they are needed:
+
+    microheart pool create py --size 5          # boot 5 ready VMs
+    microheart run --pool py -- uname -a        # takes one, runs the command, destroys it
+    microheart pool status                      # a replacement is booting in the background
+    microheart benchmark --count 10 --pool py   # compare cold start and warm dispatch
+    microheart pool delete py
+
+Rules:
+
+- **One job per VM.** After the job the VM is destroyed, never reused. The next job never sees its files, processes or
+  credentials. A replacement boots in the background from the clean base disk.
+- **Atomic.** Two jobs never get the same VM, and parallel refills never boot more VMs than the pool size.
+- **Bounded waiting.** If no VM is ready, the job waits up to `--queue-timeout` seconds, then fails with a clear error.
+- **No daemon.** `run --pool` starts a detached `microheart pool refill`. Its log is `~/.cache/microheart/pool-refill.log`.
+- A pool VM whose process died is removed and replaced on the next refill.
+- The pool uses SSH to run commands. We have **no measured numbers** for warm dispatch yet. Run `benchmark` on your host.
+- Idle pool VMs have the same network access as any VM (NAT to the internet). A per-VM firewall is not built yet.
 
 ## Python API
 
@@ -137,6 +162,9 @@ The base disk has no Python. Build your own disk (edit the `Dockerfile`) for oth
    A boot script in the disk (`/etc/local.d/05-net.start`) sets the address, the route and the host name.
    So one disk works for every VM. DNS (`8.8.8.8`) is written at boot.
 5. microheart polls SSH until the guest answers.
+6. A pool (`pool.py`) is a name, a size and a VM profile in the registry. `refill` reserves the missing VMs in one
+   transaction and boots them in parallel. `lease` marks the oldest ready VM as leased in one transaction.
+   A VM goes `booting` > `ready` > `leased` > destroyed.
 
 Network layout, for each VM:
 
@@ -166,10 +194,12 @@ Edit the recipe to add your own packages, then run `build-rootfs` again.
 
 ## Limits and roadmap
 
-- Alpha. Single VM tested on a real host (0.1.2). Multi-VM and `run` (0.2.0a1) are not.
+- Alpha. Single VM tested on a real host (0.1.2). Multi-VM, `run` (0.2.0) and the warm pool (0.3.0) are not.
+- The pool has no background service: replacements start when a job finishes. If nobody runs jobs, a crashed pool VM stays
+  until the next `run --pool` or `pool refill`.
 - VMs reach each other and the host through the TAP network (no per-VM firewall yet).
 - No snapshots, no jailer.
-- Planned: a vsock guest agent (no SSH), a warm VM pool, per-VM firewall, jailer support, snapshots.
+- Planned: a vsock guest agent (no SSH), per-VM firewall, jailer support, snapshots, a host API.
 
 ## Tested on
 
@@ -190,7 +220,8 @@ Edit the recipe to add your own packages, then run `build-rootfs` again.
 | `unknown flag: --output` in `build-rootfs` | Old version (0.1.0) with a Docker that has no buildx. Upgrade to 0.1.1 or newer. |
 | `no SSH after 60 s` | microheart prints the last console lines and removes the VM. Run `microheart console` for more. In 0.1.0, a disk made by `docker export` kept `/.dockerenv`, so OpenRC skipped the network. Rebuild the disk with 0.1.1 or newer. |
 | `(none) login:` on the console, no SSH | The same `/.dockerenv` problem. Rebuild the disk. |
-| A VM stays after a crash | `microheart down --all` (0.2.0a1). It also removes stale records. |
+| A VM stays after a crash | `microheart down --all` (0.2.0 and newer). It also removes stale records. |
+| `no ready VM in pool` | All pool VMs are busy or still booting. Wait, raise `--queue-timeout`, or make the pool bigger (`pool scale`). Check `pool status` and `~/.cache/microheart/pool-refill.log`. |
 | `microheart: command not found` | The venv is not on your `PATH`. Install with pipx, or run `source <venv>/bin/activate`. |
 
 ## Development

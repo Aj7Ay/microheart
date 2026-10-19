@@ -1,3 +1,4 @@
+import contextlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,16 +37,29 @@ class VMTests(unittest.TestCase):
                 vm.start()
         self.assertEqual(self.reg.list(), [])
         self.assertFalse(vm.dir.exists())
-        down.assert_called_once_with("mh0", remove_nat=True)
+        self.assertEqual(down.call_count, 1)
+        self.assertEqual(down.call_args[0][0], "mh0")
+        self.assertTrue(down.call_args[1]["remove_nat"]())      # no other VM: the NAT rule may go
+
+    def clean_and_collect_iptables_calls(self, name):
+        calls = []
+        with mock.patch.object(vmmod.net, "_run", side_effect=lambda *c, **k: calls.append(c)), \
+                mock.patch.object(vmmod.net, "_locked", contextlib.nullcontext), \
+                mock.patch.object(vmmod.net, "host_iface", return_value="eth0"):
+            self.make(name).clean()
+        return [c for c in calls if c[0] == "iptables"]
 
     def test_nat_rule_stays_while_another_vm_exists(self):
         self.reg.create("a")
         self.reg.create("b")
-        vm = self.make("a")
-        with mock.patch.object(vmmod.net, "down") as down:
-            vm.clean()
-        down.assert_called_once_with("mh0", remove_nat=False)
+        self.assertEqual(self.clean_and_collect_iptables_calls("a"), [])
         self.assertEqual([r["name"] for r in self.reg.list()], ["b"])
+
+    def test_nat_rule_is_removed_with_the_last_vm(self):
+        self.reg.create("a")
+        calls = self.clean_and_collect_iptables_calls("a")
+        self.assertEqual(len(calls), 1)
+        self.assertIn("-D", calls[0])
 
     def test_two_vms_get_different_addresses(self):
         self.reg.create("a")

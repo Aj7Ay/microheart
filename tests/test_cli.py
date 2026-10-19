@@ -77,6 +77,37 @@ class RunTests(unittest.TestCase):
         self.assertIn("give a command", str(code))
 
 
+class RunPoolTests(unittest.TestCase):
+    def run_pool(self, vm, lease_side_effect=None):
+        with mock.patch.object(cli.poolmod, "lease", side_effect=lease_side_effect or (lambda *a, **k: "p-abc123")) as lease, \
+                mock.patch.object(cli.poolmod, "spawn_refill") as spawn, \
+                mock.patch.object(cli, "Registry"):
+            result = run_cli(vm, "run", "--pool", "p", "--queue-timeout", "3", "--", "echo", "hi")
+        return result, lease, spawn
+
+    def test_pool_vm_is_destroyed_and_replacement_is_started(self):
+        vm = FakeVM(result=types.SimpleNamespace(stdout="hi\n", stderr="", returncode=0))
+        (code, out, _), lease, spawn = self.run_pool(vm)
+        self.assertEqual((code, out), (0, "hi\n"))
+        self.assertTrue(vm.cleaned)
+        spawn.assert_called_once()
+        self.assertEqual(lease.call_args[1]["queue_timeout"], 3)
+
+    def test_failed_job_still_destroys_vm_and_asks_for_replacement(self):
+        vm = FakeVM(error=subprocess.TimeoutExpired("ssh", 1))
+        (code, _, _), _, spawn = self.run_pool(vm)
+        self.assertEqual(code, 124)
+        self.assertTrue(vm.cleaned)
+        spawn.assert_called_once()
+
+    def test_no_ready_vm_is_a_clear_error_and_nothing_is_cleaned(self):
+        vm = FakeVM()
+        (code, _, _), _, spawn = self.run_pool(vm, lease_side_effect=TimeoutError("no ready VM in pool 'p' after 3 s"))
+        self.assertIn("no ready VM", str(code))
+        self.assertFalse(vm.cleaned)
+        spawn.assert_not_called()
+
+
 class ParserTests(unittest.TestCase):
     def test_bad_name_is_rejected(self):
         from microheart.vm import MicroVM

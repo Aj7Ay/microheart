@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 (alpha: multi-VM, run and the pool are not tested on a real host yet)
+
+- **Warm pool.** `microheart pool create NAME --size N` boots N ready VMs. `microheart run --pool NAME -- cmd`
+  takes one ready VM, runs the command, **destroys the VM** and starts a background refill. One job per VM,
+  so the next job never sees files or processes of the last one.
+- `pool status`, `pool scale`, `pool delete`, and `pool refill` (used by `run --pool`; no daemon).
+- Atomic leases and atomic refills (SQLite transactions): two jobs never get the same VM, and parallel refills never
+  boot more VMs than the pool size. A job waits at most `--queue-timeout` seconds, then gets a clear error.
+- Pool VMs whose Firecracker process died are removed (`reap`) and replaced on the next refill.
+- `microheart benchmark --count N [--pool NAME]`: cold start and warm dispatch, with min, p50, p95 and max.
+- Network changes run under a file lock, and the shared NAT rule is removed only when no VM is registered
+  (checked inside the lock). `iptables` runs with `-w`.
+- `list` shows the pool and state of each VM. A 0.2.x state database is upgraded automatically.
+- 49 unit tests.
+
 ## 0.2.0a1 (pre-release: not tested on a real host yet)
 
 Install with `pip install --pre microheart`. Plain `pip install microheart` still gives 0.1.2.

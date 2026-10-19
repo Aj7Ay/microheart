@@ -84,20 +84,27 @@ class MicroVM:
             "machine-config": {"vcpu_count": self.vcpu, "mem_size_mib": self.mem},
         }
 
-    def start(self, wait=60):
-        """Boot the VM. Return the seconds until SSH worked, or None when it already runs."""
+    def start(self, wait=60, reserved=False):
+        """Boot the VM. Return the seconds until SSH worked, or None when it already runs.
+
+        reserved=True: the registry record exists already (a pool VM that the pool reserved).
+        """
         if os.geteuid() != 0:
             raise PermissionError("run as root (use sudo)")
         if not os.access("/dev/kvm", os.R_OK | os.W_OK):
             raise PermissionError("no access to /dev/kvm")
         if not self.base_rootfs or not self.key:
             raise RuntimeError("a base disk and an SSH key are needed (run: microheart build-rootfs)")
-        if self.rec:
-            if self.running():
-                return None
-            self.clean()                       # stale record from a crash
         fc = assets.firecracker_path()
-        self.registry.create(self.name)
+        if reserved:
+            if not self.rec:
+                raise RuntimeError(f"no reserved record for VM {self.name!r}")
+        else:
+            if self.rec:
+                if self.running():
+                    return None
+                self.clean()                   # stale record from a crash
+            self.registry.create(self.name)
         try:
             self.dir.mkdir(parents=True, exist_ok=True)
             disk = self.dir / "rootfs.ext4"
@@ -115,6 +122,7 @@ class MicroVM:
                 if proc.poll() is not None:
                     raise RuntimeError("Firecracker stopped:\n" + self.tail())
                 if self.ssh("true", check=False).returncode == 0:
+                    self.registry.set_state(self.name, "ready" if self.rec["pool"] else "running")
                     return time.time() - t0
                 time.sleep(1)
             raise TimeoutError(f"no SSH after {wait} s:\n" + self.tail())
@@ -149,8 +157,9 @@ class MicroVM:
         self.stop()
         rec = self.rec
         if rec:
-            others = [v for v in self.registry.list() if v["name"] != self.name]
-            net.down(tap_name(rec["idx"]), remove_nat=not others)
+            def last_vm():       # called inside the network lock
+                return not [v for v in self.registry.list() if v["name"] != self.name]
+            net.down(tap_name(rec["idx"]), remove_nat=last_vm)
         shutil.rmtree(self.dir, ignore_errors=True)
         self.registry.delete(self.name)
 
